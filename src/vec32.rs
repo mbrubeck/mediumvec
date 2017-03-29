@@ -420,11 +420,22 @@ impl<T, U> PartialEq<U> for Vec32<T> where U: for<'a> PartialEq<&'a [T]> {
 
 #[cfg(test)]
 mod tests {
+    use super::Vec32;
+
     #[test]
     fn it_works() {
         let mut v = vec32![1, 2, 3];
         assert_eq!(v.pop(), Some(3));
         v.push(4);
         assert_eq!(v, vec![1, 2, 4]);
+    }
+
+    #[test]
+    fn test_size() {
+        use std::mem::size_of;
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(size_of::<Vec32<()>>(), 16);
+        #[cfg(target_pointer_width = "32")]
+        assert_eq!(size_of::<Vec32<()>>(), 12);
     }
 }
