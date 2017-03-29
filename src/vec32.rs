@@ -19,6 +19,11 @@ use std::marker::PhantomData;
 /// struct (16 bytes instead of 24 bytes), but its maximum capacity is `u32::MAX` instead of
 /// `usize::MAX`.
 ///
+/// ## Warning
+///
+/// This type does not yet support 16-bit or 8-bit platforms. It may cause undefined behavior
+/// if used on any architecture with addresses smaller than 32 bits.
+///
 /// ## Examples
 ///
 /// ```
