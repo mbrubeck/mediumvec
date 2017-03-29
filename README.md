@@ -6,3 +6,4 @@ instead of `usize`.
 
 * [Documentation](https://docs.rs/mediumvec)
 * [crates.io](https://crates.io/crates/mediumvec)
+* [Release notes](https://github.com/mbrubeck/mediumvec/releases)
