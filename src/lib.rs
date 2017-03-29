@@ -1,4 +1,4 @@
-//! Collections optimized for space at the expenes of capacity.
+//! Collections optimized for space at the expense of capacity.
 
 // Copyright 2017 Matt Brubeck.
 //
