@@ -188,7 +188,7 @@ impl<T> Vec32<T> {
         }
         let double_cap = self.cap.saturating_mul(2);
         let new_cap = cmp::max(min_cap, double_cap);
-        let additional = new_cap - self.cap;
+        let additional = new_cap - self.len;
         self.reserve_exact(additional);
     }
 
