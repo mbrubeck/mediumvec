@@ -7,5 +7,7 @@
 // copied, modified, or distributed except according to those terms.
 
 pub mod vec32;
+pub mod pointer_vec;
 
 pub use vec32::Vec32;
+pub use pointer_vec::PointerVec;
