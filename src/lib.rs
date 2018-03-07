@@ -1,4 +1,4 @@
-//! Collections optimized for space at the expense of capacity.
+//! A vector that is indexed by `u32` instead of `usize`.
 
 // Copyright 2017 Matt Brubeck.
 //
