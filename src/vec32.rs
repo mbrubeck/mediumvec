@@ -9,7 +9,7 @@
 
 
 use std::{cmp, fmt, iter, mem, ops, ptr, slice, u32, vec};
-use std::marker::PhantomData;
+use std::ptr::NonNull;
 
 /// A vector that is indexed by `u32` instead of `usize`.
 ///
@@ -61,10 +61,9 @@ use std::marker::PhantomData;
 /// }
 /// ```
 pub struct Vec32<T> {
-    ptr: *mut T,
+    ptr: ptr::NonNull<T>,
     cap: u32,
     len: u32,
-    _data: PhantomData<T>,
 }
 
 impl<T> Vec32<T> {
@@ -73,22 +72,19 @@ impl<T> Vec32<T> {
     /// The vector will not allocate until elements are pushed onto it.
     pub fn new() -> Vec32<T> {
         Vec32 {
-            ptr: ptr::null_mut(),
+            ptr: NonNull::dangling(),
             cap: if mem::size_of::<T>() == 0 { u32::MAX } else { 0 },
             len: 0,
-            _data: PhantomData,
         }
     }
 
     /// Constructs a new, empty (length 0) vector with the specified capacity.
-    pub fn with_capacity(capacity: u32) -> Vec32<T> {
-        let v = Vec::with_capacity(capacity as usize);
-        Vec32 {
-            ptr: v.into_boxed_slice().as_mut_ptr(),
-            cap: capacity,
-            len: 0,
-            _data: PhantomData,
-        }
+    pub fn with_capacity(cap: u32) -> Vec32<T> {
+        let mut v = Vec::with_capacity(cap as usize);
+        let ptr = NonNull::new(v.as_mut_ptr()).unwrap();
+        mem::forget(v);
+
+        Vec32 { ptr, cap, len: 0 }
     }
 
     /// Append an element to the vector.
@@ -220,21 +216,16 @@ impl<T> Vec32<T> {
             vec.capacity() as u32
         };
 
-        let ptr = vec.as_mut_ptr();
+        let ptr = NonNull::new(vec.as_mut_ptr()).unwrap();
         mem::forget(vec);
 
-        Vec32 {
-            ptr: ptr,
-            cap: cap,
-            len: len as u32,
-            _data: PhantomData,
-        }
+        Vec32 { ptr, cap, len: len as u32 }
     }
 
     /// Convert a `Vec32<T>` into a `Vec<T>` without re-allocating.
     pub fn into_vec(self) -> Vec<T> {
         unsafe {
-            Vec::from_raw_parts(self.ptr, self.len as usize, self.cap as usize)
+            Vec::from_raw_parts(self.ptr.as_ptr(), self.len as usize, self.cap as usize)
         }
     }
 
@@ -321,7 +312,7 @@ impl<T> Drop for Vec32<T> {
     fn drop(&mut self) {
         unsafe {
             ptr::drop_in_place(&mut self[..]);
-            Vec::from_raw_parts(self.ptr, 0, self.cap as usize);
+            Vec::from_raw_parts(self.ptr.as_ptr(), 0, self.cap as usize);
         }
     }
 }
@@ -337,7 +328,7 @@ impl<T> ops::Deref for Vec32<T> {
 
     fn deref(&self) -> &[T] {
         unsafe {
-            slice::from_raw_parts(self.ptr, self.len as usize)
+            slice::from_raw_parts(self.ptr.as_ptr(), self.len as usize)
         }
     }
 }
@@ -345,7 +336,7 @@ impl<T> ops::Deref for Vec32<T> {
 impl<T> ops::DerefMut for Vec32<T> {
     fn deref_mut(&mut self) -> &mut [T] {
         unsafe {
-            slice::from_raw_parts_mut(self.ptr, self.len as usize)
+            slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len as usize)
         }
     }
 }
@@ -372,7 +363,7 @@ impl<'a, T> IntoIterator for &'a mut Vec32<T> {
     type Item = &'a mut T;
     type IntoIter = slice::IterMut<'a, T>;
 
-    fn into_iter(mut self) -> slice::IterMut<'a, T> {
+    fn into_iter(self) -> slice::IterMut<'a, T> {
         self.iter_mut()
     }
 }
