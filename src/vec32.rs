@@ -225,7 +225,9 @@ impl<T> Vec32<T> {
     /// Convert a `Vec32<T>` into a `Vec<T>` without re-allocating.
     pub fn into_vec(self) -> Vec<T> {
         unsafe {
-            Vec::from_raw_parts(self.ptr.as_ptr(), self.len as usize, self.cap as usize)
+            let v = Vec::from_raw_parts(self.ptr.as_ptr(), self.len as usize, self.cap as usize);
+            mem::forget(self);
+            v
         }
     }
 
@@ -417,6 +419,19 @@ impl<T, U> PartialEq<U> for Vec32<T> where U: for<'a> PartialEq<&'a [T]> {
 #[cfg(test)]
 mod tests {
     use super::Vec32;
+
+    #[test]
+    fn singledrop() {
+        struct SingleDrop(bool);
+        impl Drop for SingleDrop {
+            fn drop(&mut self) {
+                assert!(self.0);
+                self.0 = false
+            }
+        }
+        let mut v = vec32![SingleDrop(true)];
+        v.push(SingleDrop(true));
+    }
 
     #[test]
     fn it_works() {
