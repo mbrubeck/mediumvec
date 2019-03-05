@@ -319,6 +319,9 @@ impl<T> Drop for Vec32<T> {
     }
 }
 
+unsafe impl<T: Sync> Sync for Vec32<T> {}
+unsafe impl<T: Send> Send for Vec32<T> {}
+
 impl<T: Clone> Clone for Vec32<T> {
     fn clone(&self) -> Self {
         Vec32::from_vec(self[..].to_vec())
