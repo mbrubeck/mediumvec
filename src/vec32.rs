@@ -7,22 +7,36 @@
 // the MIT license <http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
+#![allow(clippy::identity_conversion)]
 
 use std::{cmp, fmt, iter, mem, ops, ptr, slice, u32, vec};
 use std::ptr::NonNull;
+use std::convert::TryFrom;
+
+#[cfg(not(any(target_pointer_width = "16", target_pointer_width = "32", target_pointer_width = "64")))]
+compile_error!("target_pointer_width must be 16, 32, or 64");
+
+#[cfg(target_pointer_width = "16")]
+#[allow(non_camel_case_types)]
+type usize32 = u16;
+
+#[cfg(not(target_pointer_width = "16"))]
+#[allow(non_camel_case_types)]
+type usize32 = u32;
 
 /// A vector that is indexed by `u32` instead of `usize`.
 ///
-/// On 32-bit platforms, `Vec32<T>` is mostly identical to the standard library `Vec<T>`.
+/// On 16-bit and 32-bit platforms, `Vec32<T>` is mostly identical to the standard library `Vec<T>`.
 ///
 /// On 64-bit platforms, the `Vec32<T>` struct takes up less space than the standard `Vec<T>`
 /// struct (16 bytes instead of 24 bytes), but its maximum capacity is `u32::MAX` instead of
 /// `usize::MAX`.
+/// 
+/// Only 16-bit, 32-bit, and 64-bit platforms are currently supported.
 ///
 /// ## Warning
 ///
-/// This type does not yet support 16-bit or 8-bit platforms. It may cause undefined behavior
-/// if used on any architecture with addresses smaller than 32 bits.
+/// This type has not been rigorously tested on 16-bit platforms.
 ///
 /// ## Examples
 ///
@@ -62,8 +76,8 @@ use std::ptr::NonNull;
 /// ```
 pub struct Vec32<T> {
     ptr: ptr::NonNull<T>,
-    cap: u32,
-    len: u32,
+    cap: usize32,
+    len: usize32,
 }
 
 impl<T> Vec32<T> {
@@ -73,23 +87,24 @@ impl<T> Vec32<T> {
     pub fn new() -> Vec32<T> {
         Vec32 {
             ptr: NonNull::dangling(),
-            cap: if mem::size_of::<T>() == 0 { u32::MAX } else { 0 },
+            cap: if mem::size_of::<T>() == 0 { usize32::max_value() } else { 0 },
             len: 0,
         }
     }
 
     /// Constructs a new, empty (length 0) vector with the specified capacity.
     pub fn with_capacity(cap: u32) -> Vec32<T> {
-        let mut v = Vec::with_capacity(cap as usize);
+        let size = usize32::try_from(cap).expect("capacity overflow");
+        let mut v = Vec::with_capacity(size as usize);
         let ptr = NonNull::new(v.as_mut_ptr()).unwrap();
         mem::forget(v);
 
-        Vec32 { ptr, cap, len: 0 }
+        Vec32 { ptr, cap: size, len: 0 }
     }
 
     /// Append an element to the vector.
     ///
-    /// Panics if the number of elements in the vector overflows `u32`.
+    /// Panics if the number of elements in the vector overflows `u32` or `usize`, whichever is smaller.
     pub fn push(&mut self, value: T) {
         if self.len == self.cap {
             self.reserve(1);
@@ -129,11 +144,12 @@ impl<T> Vec32<T> {
     /// ```
     pub fn remove(&mut self, index: u32) -> T {
         let len = self.len;
-        assert!(index < len);
+        let ind = usize32::try_from(index).expect("index out of bounds");
+        assert!(ind < len);
         unsafe {
-            let ptr = self.as_mut_ptr().offset(index as isize);
+            let ptr = self.as_mut_ptr().offset(ind as isize);
             let ret = ptr::read(ptr);
-            ptr::copy(ptr.offset(1), ptr, (len - index - 1) as usize);
+            ptr::copy(ptr.offset(1), ptr, (len - ind - 1) as usize);
             self.len -= 1;
             ret
         }
@@ -141,7 +157,7 @@ impl<T> Vec32<T> {
 
     /// Insert an element at position `index`, shifting elements after it to the right.
     ///
-    /// Panics if `index` is out of bounds or the length of the vector overflows `u32`.
+    /// Panics if `index` is out of bounds or the length of the vector overflows `u32` or `usize`, whichever is smaller.
     ///
     /// ## Examples
     ///
@@ -157,14 +173,15 @@ impl<T> Vec32<T> {
     /// ```
     pub fn insert(&mut self, index: u32, element: T) {
         let len = self.len;
-        assert!(index <= len);
+        let ind = usize32::try_from(index).expect("index out of bounds");
+        assert!(ind <= len);
         if len == self.cap {
             self.reserve(1);
         }
 
         unsafe {
-            let p = self.as_mut_ptr().offset(index as isize);
-            ptr::copy(p, p.offset(1), (len - index) as usize);
+            let p = self.as_mut_ptr().offset(ind as isize);
+            ptr::copy(p, p.offset(1), (len - ind) as usize);
             ptr::write(p, element);
             self.len += 1;
         }
@@ -174,52 +191,53 @@ impl<T> Vec32<T> {
     ///
     /// May reserve more space than requested, to avoid frequent reallocations.
     ///
-    /// Panics if the new capacity overflows `u32`.
+    /// Panics if the new capacity overflows `u32` or `usize`, whichever is smaller.
     ///
     /// Re-allocates only if `self.capacity() < self.len() + additional`.
     pub fn reserve(&mut self, additional: u32) {
-        let min_cap = self.len.checked_add(additional).expect("capacity overflow");
+        let extra = usize32::try_from(additional).expect("capacity overflow");
+        let min_cap = self.len.checked_add(extra).expect("capacity overflow");
         if min_cap <= self.cap {
             return
         }
         let double_cap = self.cap.saturating_mul(2);
         let new_cap = cmp::max(min_cap, double_cap);
         let additional = new_cap - self.len;
-        self.reserve_exact(additional);
+        self.reserve_exact(u32::from(additional));
     }
 
     /// Reserves the minimum capacity for `additional` more elements to be inserted.
     ///
-    /// Panics if the new capacity overflows `u32`.
+    /// Panics if the new capacity overflows `u32` or `usize`, whichever is smaller.
     ///
     /// Re-allocates only if `self.capacity() < self.len() + additional`.
     pub fn reserve_exact(&mut self, additional: u32) {
-        self.as_vec(|v| v.reserve_exact(additional as usize));
+        let extra = usize32::try_from(additional).expect("capacity overflow");
+        self.as_vec(|v| v.reserve_exact(extra as usize));
     }
 
     /// Converts a `Vec<T>` to a `Vec32<T>`.
     ///
-    /// Panics if the vector's length is greater than `u32::MAX`.
+    /// Panics if the vector's length is greater than `u32::MAX` or `usize::MAX`, whichever is smaller.
     ///
     /// Re-allocates only if the vector's capacity is greater than `u32::MAX`.
     pub fn from_vec(mut vec: Vec<T>) -> Vec32<T> {
-        let len = vec.len();
-        assert!(len <= u32::MAX as usize);
+        let len = usize32::try_from(vec.len()).expect("capacity overflow");
 
-        if vec.capacity() > u32::MAX as usize {
+        if vec.capacity() > usize32::max_value() as usize {
             vec.shrink_to_fit();
         }
 
         let cap = if mem::size_of::<T>() == 0 {
-            u32::MAX
+            usize32::max_value()
         } else {
-            vec.capacity() as u32
+            usize32::try_from(vec.capacity()).expect("capacity overflow")
         };
 
         let ptr = NonNull::new(vec.as_mut_ptr()).unwrap();
         mem::forget(vec);
 
-        Vec32 { ptr, cap, len: len as u32 }
+        Vec32 { ptr, cap, len }
     }
 
     /// Convert a `Vec32<T>` into a `Vec<T>` without re-allocating.
@@ -235,7 +253,7 @@ impl<T> Vec32<T> {
     ///
     /// This is a convenient way to call `Vec` methods that don't have `Vec32` equivalents.
     ///
-    /// Panics if the vector's length increases to greater than `u32::MAX`.
+    /// Panics if the vector's length increases to greater than `u32::MAX` or `usize::MAX`, whichever is smaller.
     ///
     /// ```
     /// # #[macro_use] extern crate mediumvec;
@@ -253,7 +271,7 @@ impl<T> Vec32<T> {
 
     /// Returns the maximum number of elements the vector can hold without reallocating.
     pub fn capacity(&self) -> u32 {
-        self.cap
+        u32::from(self.cap)
     }
 
     /// Clears the vector, removing all values.
@@ -270,7 +288,7 @@ impl<T> Vec32<T> {
     pub fn truncate(&mut self, len: u32) {
         unsafe {
             // drop any extra elements
-            while len < self.len {
+            while len < u32::from(self.len) {
                 // decrement len before the drop_in_place(), so a panic on Drop
                 // doesn't re-drop the just-failed value.
                 self.len -= 1;
@@ -376,9 +394,9 @@ impl<'a, T> IntoIterator for &'a mut Vec32<T> {
 impl<T> Extend<T> for Vec32<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         let iterator = iter.into_iter();
-        let (lower, _) = iterator.size_hint();
-        assert!(lower < u32::MAX as usize);
-        self.reserve(lower as u32);
+        let lower = usize32::try_from(iterator.size_hint().0).expect("capacity overflow");
+        assert!(lower != usize32::max_value());
+        self.reserve(u32::from(lower));
 
         for i in iterator {
             self.push(i);
@@ -389,10 +407,10 @@ impl<T> Extend<T> for Vec32<T> {
 impl<T> iter::FromIterator<T> for Vec32<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Vec32<T> {
         let iterator = iter.into_iter();
-        let (lower, _) = iterator.size_hint();
-        assert!(lower < u32::MAX as usize);
+        let lower = usize32::try_from(iterator.size_hint().0).expect("capacity overflow");
+        assert!(lower != usize32::max_value());
 
-        let mut v = Vec32::with_capacity(lower as u32);
+        let mut v = Vec32::with_capacity(u32::from(lower));
         for i in iterator {
             v.push(i);
         }
@@ -451,5 +469,7 @@ mod tests {
         assert_eq!(size_of::<Vec32<()>>(), 16);
         #[cfg(target_pointer_width = "32")]
         assert_eq!(size_of::<Vec32<()>>(), 12);
+        #[cfg(target_pointer_width = "16")]
+        assert_eq!(size_of::<Vec32<()>>(), 6);
     }
 }
