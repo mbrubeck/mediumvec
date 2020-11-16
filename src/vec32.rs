@@ -8,7 +8,7 @@
 // copied, modified, or distributed except according to those terms.
 
 
-use std::{cmp, fmt, iter, mem, ops, ptr, slice, u32, vec};
+use std::{borrow, cmp, fmt, iter, mem, ops, ptr, slice, u32, vec};
 use std::ptr::NonNull;
 
 /// A vector that is indexed by `u32` instead of `usize`.
@@ -310,12 +310,68 @@ macro_rules! vec32 {
 
 // Trait implementations:
 
+impl<T> AsMut<Vec32<T>> for Vec32<T> {
+    fn as_mut(&mut self) -> &mut Vec32<T> {
+        self
+    }
+}
+
+impl<T> AsMut<[T]> for Vec32<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self
+    }
+}
+
+impl<T> AsRef<Vec32<T>> for Vec32<T> {
+    fn as_ref(&self) -> &Vec32<T> {
+        self
+    }
+}
+
+impl<T> AsRef<[T]> for Vec32<T> {
+    fn as_ref(&self) -> &[T] {
+        self
+    }
+}
+
+impl<T> borrow::Borrow<[T]> for Vec32<T> {
+    fn borrow(&self) -> &[T] {
+        &self[..]
+    }
+}
+
+impl<T> borrow::BorrowMut<[T]> for Vec32<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        &mut self[..]
+    }
+}
+
+impl<T> Default for Vec32<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> Drop for Vec32<T> {
     fn drop(&mut self) {
         unsafe {
             ptr::drop_in_place(&mut self[..]);
             Vec::from_raw_parts(self.ptr.as_ptr(), 0, self.cap as usize);
         }
+    }
+}
+
+impl<T, I: slice::SliceIndex<[T]>> ops::Index<I> for Vec32<T> {
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        ops::Index::index(&**self, index)
+    }
+}
+
+impl<T, I: slice::SliceIndex<[T]>> ops::IndexMut<I> for Vec32<T> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        ops::IndexMut::index_mut(&mut **self, index)
     }
 }
 
@@ -409,6 +465,12 @@ impl<T: fmt::Debug> fmt::Debug for Vec32<T> {
 impl<T: PartialOrd> PartialOrd for Vec32<T> {
     fn partial_cmp(&self, other: &Vec32<T>) -> Option<cmp::Ordering> {
         PartialOrd::partial_cmp(&**self, &**other)
+    }
+}
+
+impl<T: Ord> Ord for Vec32<T> {
+    fn cmp(&self, other: &Vec32<T>) -> cmp::Ordering {
+        Ord::cmp(&**self, &**other)
     }
 }
 
