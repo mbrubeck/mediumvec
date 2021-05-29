@@ -8,7 +8,7 @@
 // copied, modified, or distributed except according to those terms.
 
 
-use std::{borrow, cmp, fmt, iter, mem, ops, ptr, slice, u32, vec};
+use std::{borrow, cmp, fmt, hash, iter, mem, ops, ptr, slice, u32, vec};
 use std::ptr::NonNull;
 
 /// A vector that is indexed by `u32` instead of `usize`.
@@ -481,6 +481,12 @@ impl<T, U> PartialEq<U> for Vec32<T> where U: for<'a> PartialEq<&'a [T]> {
     fn ne(&self, other: &U) -> bool { *other != &self[..] }
 }
 
+impl<T: hash::Hash> hash::Hash for Vec32<T> {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        (&**self).hash(state)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Vec32;
@@ -513,5 +519,21 @@ mod tests {
         assert_eq!(size_of::<Vec32<()>>(), 16);
         #[cfg(target_pointer_width = "32")]
         assert_eq!(size_of::<Vec32<()>>(), 12);
+    }
+
+    #[test]
+    fn test_hash() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hash1 = DefaultHasher::new();
+        let mut hash2 = DefaultHasher::new();
+
+        let v1 = vec32![1, 2, 3];
+        let v2 = vec![1, 2, 3];
+
+        v1.hash(&mut hash1);
+        v2.hash(&mut hash2);
+        assert_eq!(hash1.finish(), hash2.finish());
     }
 }
