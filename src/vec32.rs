@@ -93,6 +93,7 @@ impl<T> Vec32<T> {
     /// Append an element to the vector.
     ///
     /// Panics if the number of elements in the vector overflows `u32`.
+    #[inline]
     pub fn push(&mut self, value: T) {
         if self.len == self.cap {
             self.reserve(1);
@@ -101,6 +102,17 @@ impl<T> Vec32<T> {
             let end = self.as_mut_ptr().offset(self.len as isize);
             ptr::write(end, value);
             self.len += 1;
+        }
+    }
+    #[inline]
+    pub fn extend_from_slice(&mut self, other: &[T]) {
+        if self.len + other.len() as u32 >= self.cap {
+            self.reserve(other.len() as u32);
+        }
+        unsafe {
+            let end = self.as_mut_ptr().offset(self.len as isize);
+            ptr::copy_nonoverlapping(other.as_ptr(), end, other.len());
+            self.len += other.len() as u32;
         }
     }
 
