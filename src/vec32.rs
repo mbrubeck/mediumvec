@@ -200,6 +200,11 @@ impl<T> Vec32<T> {
         self.as_vec(|v| v.reserve_exact(additional as usize));
     }
 
+    /// Shrinks the capacity of the vector as much as possible.
+    pub fn shrink_to_fit(&mut self) {
+        self.as_vec(|v| v.shrink_to_fit());
+    }
+
     /// Converts a `Vec<T>` to a `Vec32<T>`.
     ///
     /// Panics if the vector's length is greater than `u32::MAX`.
