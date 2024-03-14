@@ -7,9 +7,8 @@
 // the MIT license <http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-
-use std::{borrow, cmp, fmt, hash, iter, mem, ops, ptr, slice, u32, vec};
 use std::ptr::NonNull;
+use std::{borrow, cmp, fmt, hash, iter, mem, ops, ptr, slice, u32, vec};
 
 /// A vector that is indexed by `u32` instead of `usize`.
 ///
@@ -73,7 +72,11 @@ impl<T> Vec32<T> {
     pub fn new() -> Vec32<T> {
         Vec32 {
             ptr: NonNull::dangling(),
-            cap: if mem::size_of::<T>() == 0 { u32::MAX } else { 0 },
+            cap: if mem::size_of::<T>() == 0 {
+                u32::MAX
+            } else {
+                0
+            },
             len: 0,
         }
     }
@@ -180,7 +183,7 @@ impl<T> Vec32<T> {
     pub fn reserve(&mut self, additional: u32) {
         let min_cap = self.len.checked_add(additional).expect("capacity overflow");
         if min_cap <= self.cap {
-            return
+            return;
         }
         let double_cap = self.cap.saturating_mul(2);
         let new_cap = cmp::max(min_cap, double_cap);
@@ -219,7 +222,11 @@ impl<T> Vec32<T> {
         let ptr = NonNull::new(vec.as_mut_ptr()).unwrap();
         mem::forget(vec);
 
-        Vec32 { ptr, cap, len: len as u32 }
+        Vec32 {
+            ptr,
+            cap,
+            len: len as u32,
+        }
     }
 
     /// Convert a `Vec32<T>` into a `Vec<T>` without re-allocating.
@@ -245,7 +252,10 @@ impl<T> Vec32<T> {
     /// assert_eq!(v, [0, 1, 2, 3]);
     /// # }
     /// ```
-    pub fn as_vec<F>(&mut self, f: F) where F: FnOnce(&mut Vec<T>) {
+    pub fn as_vec<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Vec<T>),
+    {
         let mut vec = mem::replace(self, Vec32::new()).into_vec();
         f(&mut vec);
         *self = Vec32::from_vec(vec);
@@ -388,17 +398,13 @@ impl<T> ops::Deref for Vec32<T> {
     type Target = [T];
 
     fn deref(&self) -> &[T] {
-        unsafe {
-            slice::from_raw_parts(self.ptr.as_ptr(), self.len as usize)
-        }
+        unsafe { slice::from_raw_parts(self.ptr.as_ptr(), self.len as usize) }
     }
 }
 
 impl<T> ops::DerefMut for Vec32<T> {
     fn deref_mut(&mut self) -> &mut [T] {
-        unsafe {
-            slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len as usize)
-        }
+        unsafe { slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len as usize) }
     }
 }
 
@@ -476,9 +482,16 @@ impl<T: Ord> Ord for Vec32<T> {
 
 impl<T: Eq> Eq for Vec32<T> {}
 
-impl<T, U> PartialEq<U> for Vec32<T> where U: for<'a> PartialEq<&'a [T]> {
-    fn eq(&self, other: &U) -> bool { *other == &self[..] }
-    fn ne(&self, other: &U) -> bool { *other != &self[..] }
+impl<T, U> PartialEq<U> for Vec32<T>
+where
+    U: for<'a> PartialEq<&'a [T]>,
+{
+    fn eq(&self, other: &U) -> bool {
+        *other == &self[..]
+    }
+    fn ne(&self, other: &U) -> bool {
+        *other != &self[..]
+    }
 }
 
 impl<T: hash::Hash> hash::Hash for Vec32<T> {
