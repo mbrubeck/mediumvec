@@ -117,6 +117,7 @@ impl<T> Vec32<T> {
     }
 
     /// Remove the last element from a vector and return it, or `None` if it is empty.
+    #[inline]
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             None
@@ -142,6 +143,7 @@ impl<T> Vec32<T> {
     /// assert_eq!(v, [1, 3]);
     /// # }
     /// ```
+    #[inline]
     pub fn remove(&mut self, index: u32) -> T {
         let len = self.len;
         assert!(index < len);
@@ -170,6 +172,7 @@ impl<T> Vec32<T> {
     /// assert_eq!(vec, [1, 4, 2, 3, 5]);
     /// # }
     /// ```
+    #[inline]
     pub fn insert(&mut self, index: u32, element: T) {
         let len = self.len;
         assert!(index <= len);
@@ -192,6 +195,7 @@ impl<T> Vec32<T> {
     /// Panics if the new capacity overflows `u32`.
     ///
     /// Re-allocates only if `self.capacity() < self.len() + additional`.
+    #[inline]
     pub fn reserve(&mut self, additional: u32) {
         let min_cap = self.len.checked_add(additional).expect("capacity overflow");
         if min_cap <= self.cap {
@@ -208,6 +212,7 @@ impl<T> Vec32<T> {
     /// Panics if the new capacity overflows `u32`.
     ///
     /// Re-allocates only if `self.capacity() < self.len() + additional`.
+    #[inline]
     pub fn reserve_exact(&mut self, additional: u32) {
         self.as_vec(|v| v.reserve_exact(additional as usize));
     }
@@ -269,6 +274,7 @@ impl<T> Vec32<T> {
     /// assert_eq!(v, [0, 1, 2, 3]);
     /// # }
     /// ```
+    #[inline]
     pub fn as_vec<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Vec<T>),
@@ -279,6 +285,7 @@ impl<T> Vec32<T> {
     }
 
     /// Returns the maximum number of elements the vector can hold without reallocating.
+    #[inline]
     pub fn capacity(&self) -> u32 {
         self.cap
     }
@@ -287,6 +294,7 @@ impl<T> Vec32<T> {
     ///
     /// Note that this method has no effect on the allocated capacity
     /// of the vector.
+    #[inline]
     pub fn clear(&mut self) {
         self.truncate(0)
     }
