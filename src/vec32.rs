@@ -574,4 +574,11 @@ mod tests {
         v2.hash(&mut hash2);
         assert_eq!(hash1.finish(), hash2.finish());
     }
+
+    #[test]
+    fn extend_from_slice() {
+        let mut v = vec32![1, 2, 3];
+        v.extend_from_slice(&[4, 5]);
+        assert_eq!(v, vec![1, 2, 3, 4, 5]);
+    }
 }
