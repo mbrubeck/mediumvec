@@ -93,25 +93,38 @@ impl<T> Vec32<T> {
     /// Append an element to the vector.
     ///
     /// Panics if the number of elements in the vector overflows `u32`.
+    #[inline]
     pub fn push(&mut self, value: T) {
         if self.len == self.cap {
             self.reserve(1);
         }
         unsafe {
-            let end = self.as_mut_ptr().offset(self.len as isize);
+            let end = self.as_mut_ptr().add(self.len as usize);
             ptr::write(end, value);
             self.len += 1;
         }
     }
+    #[inline]
+    pub fn extend_from_slice(&mut self, other: &[T]) {
+        if self.len as usize + other.len() as usize >= self.cap as usize {
+            self.reserve(other.len() as u32);
+        }
+        unsafe {
+            let end = self.as_mut_ptr().offset(self.len as isize);
+            ptr::copy_nonoverlapping(other.as_ptr(), end, other.len());
+            self.len += other.len() as u32;
+        }
+    }
 
     /// Remove the last element from a vector and return it, or `None` if it is empty.
+    #[inline]
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             None
         } else {
             unsafe {
                 self.len -= 1;
-                Some(ptr::read(self.get_unchecked(self.len as usize)))
+                Some(ptr::read(self.as_ptr().add(self.len())))
             }
         }
     }
@@ -130,6 +143,7 @@ impl<T> Vec32<T> {
     /// assert_eq!(v, [1, 3]);
     /// # }
     /// ```
+    #[inline]
     pub fn remove(&mut self, index: u32) -> T {
         let len = self.len;
         assert!(index < len);
@@ -158,6 +172,7 @@ impl<T> Vec32<T> {
     /// assert_eq!(vec, [1, 4, 2, 3, 5]);
     /// # }
     /// ```
+    #[inline]
     pub fn insert(&mut self, index: u32, element: T) {
         let len = self.len;
         assert!(index <= len);
@@ -166,8 +181,8 @@ impl<T> Vec32<T> {
         }
 
         unsafe {
-            let p = self.as_mut_ptr().offset(index as isize);
-            ptr::copy(p, p.offset(1), (len - index) as usize);
+            let p = self.as_mut_ptr().add(index as usize);
+            ptr::copy(p, p.add(1), (len - index) as usize);
             ptr::write(p, element);
             self.len += 1;
         }
@@ -257,6 +272,7 @@ impl<T> Vec32<T> {
     /// assert_eq!(v, [0, 1, 2, 3]);
     /// # }
     /// ```
+    #[inline]
     pub fn as_vec<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Vec<T>),
@@ -267,6 +283,7 @@ impl<T> Vec32<T> {
     }
 
     /// Returns the maximum number of elements the vector can hold without reallocating.
+    #[inline]
     pub fn capacity(&self) -> u32 {
         self.cap
     }
@@ -275,6 +292,7 @@ impl<T> Vec32<T> {
     ///
     /// Note that this method has no effect on the allocated capacity
     /// of the vector.
+    #[inline]
     pub fn clear(&mut self) {
         self.truncate(0)
     }
@@ -553,5 +571,15 @@ mod tests {
         v1.hash(&mut hash1);
         v2.hash(&mut hash2);
         assert_eq!(hash1.finish(), hash2.finish());
+    }
+
+    #[test]
+    fn extend_from_slice() {
+        let mut v = Vec32::with_capacity(3);
+        v.extend_from_slice(&[1, 2, 3]);
+        assert_eq!(v.capacity(), 3);
+        v.extend_from_slice(&[4, 5]);
+        assert_eq!(v, vec![1, 2, 3, 4, 5]);
+        assert_eq!(v.capacity(), 6);
     }
 }
