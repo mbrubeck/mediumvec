@@ -124,7 +124,7 @@ impl<T> Vec32<T> {
         } else {
             unsafe {
                 self.len -= 1;
-                Some(ptr::read(self.get_unchecked(self.len as usize)))
+                Some(ptr::read(self.as_ptr().add(self.len())))
             }
         }
     }
@@ -577,8 +577,11 @@ mod tests {
 
     #[test]
     fn extend_from_slice() {
-        let mut v = vec32![1, 2, 3];
+        let mut v = Vec32::with_capacity(3);
+        v.extend_from_slice(&[1, 2, 3]);
+        assert_eq!(v.capacity(), 3);
         v.extend_from_slice(&[4, 5]);
         assert_eq!(v, vec![1, 2, 3, 4, 5]);
+        assert_eq!(v.capacity(), 6);
     }
 }
