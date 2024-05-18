@@ -106,7 +106,7 @@ impl<T> Vec32<T> {
     }
     #[inline]
     pub fn extend_from_slice(&mut self, other: &[T]) {
-        if self.len + other.len() as u32 >= self.cap {
+        if self.len as usize + other.len() as usize >= self.cap as usize {
             self.reserve(other.len() as u32);
         }
         unsafe {
