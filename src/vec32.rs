@@ -99,7 +99,7 @@ impl<T> Vec32<T> {
             self.reserve(1);
         }
         unsafe {
-            let end = self.as_mut_ptr().offset(self.len as isize);
+            let end = self.as_mut_ptr().add(self.len as usize);
             ptr::write(end, value);
             self.len += 1;
         }
@@ -181,8 +181,8 @@ impl<T> Vec32<T> {
         }
 
         unsafe {
-            let p = self.as_mut_ptr().offset(index as isize);
-            ptr::copy(p, p.offset(1), (len - index) as usize);
+            let p = self.as_mut_ptr().add(index as usize);
+            ptr::copy(p, p.add(1), (len - index) as usize);
             ptr::write(p, element);
             self.len += 1;
         }
@@ -195,7 +195,6 @@ impl<T> Vec32<T> {
     /// Panics if the new capacity overflows `u32`.
     ///
     /// Re-allocates only if `self.capacity() < self.len() + additional`.
-    #[inline]
     pub fn reserve(&mut self, additional: u32) {
         let min_cap = self.len.checked_add(additional).expect("capacity overflow");
         if min_cap <= self.cap {
@@ -212,7 +211,6 @@ impl<T> Vec32<T> {
     /// Panics if the new capacity overflows `u32`.
     ///
     /// Re-allocates only if `self.capacity() < self.len() + additional`.
-    #[inline]
     pub fn reserve_exact(&mut self, additional: u32) {
         self.as_vec(|v| v.reserve_exact(additional as usize));
     }
