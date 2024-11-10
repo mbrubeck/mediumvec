@@ -98,7 +98,7 @@ impl<T> Vec32<T> {
             self.reserve(1);
         }
         unsafe {
-            let end = self.as_mut_ptr().offset(self.len as isize);
+            let end = self.ptr.as_ptr().add(self.len as _);
             ptr::write(end, value);
             self.len += 1;
         }
@@ -111,7 +111,7 @@ impl<T> Vec32<T> {
         } else {
             unsafe {
                 self.len -= 1;
-                Some(ptr::read(self.get_unchecked(self.len as usize)))
+                Some(ptr::read(self.ptr.as_ptr().add(self.len as _)))
             }
         }
     }
